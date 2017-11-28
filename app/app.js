@@ -2,11 +2,13 @@ var express  = require("express"),
     app      = express(),
     bodyParser  = require("body-parser"),
     mongoose = require('mongoose'),
-    routingLyra = require('./routing/uploadImageRouting');
+    routingLyra = require('./routing/uploadImageRouting'), 
+	cors = require('cors');
 
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
+app.use(cors())
 
 /**
 app.post('/upload', multipartMiddleware, function(req, res) {
@@ -28,6 +30,4 @@ mongoose.connect('mongodb://localhost/imagenes_lyra',{useMongoClient: true},
 });
 
 // Start server
-app.listen(3000, function() {
-  console.log("Node server running on http://localhost:3000");
-});
+app.listen(3000);

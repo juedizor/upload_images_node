@@ -6,10 +6,11 @@
 
 var uploadImage = require("../model/rutaImagenes"),
     fs = require('fs'),
-    path = require('path');
+    path = require('path'), 
+	os = require('os');
 
 var modelRutaImagen = uploadImage.rutaImagenesModel;
-var ruta = "/home/julio/imagenes_lyra/";
+var ruta = os.homedir() + "\\imagenes_lyra\\";
 
 
 function guardarImagen(req, res) {
