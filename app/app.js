@@ -30,4 +30,6 @@ mongoose.connect('mongodb://localhost/imagenes_lyra',{useMongoClient: true},
 });
 
 // Start server
-app.listen(3000);
+app.listen(3000, function(err){
+	console.log("Conected port http://localhot:3000")
+});

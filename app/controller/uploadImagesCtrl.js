@@ -17,7 +17,7 @@ function guardarImagen(req, res) {
   modelRutaImagen.findOne({idDoc:req.body.id_doc}, function(err, dataRutaImagen){
     if(err) return res.status(500).send(err);
     if(dataRutaImagen != null) {
-      if(!isEmpty(req.files)) {
+      if(!isEmpty(req.file)) {
         return realizarProcesoCargueImagen(req, res, true);
       }
     }else{
@@ -27,20 +27,22 @@ function guardarImagen(req, res) {
 }
 
 function realizarProcesoCargueImagen(req, res, exits) {
-  if(!isEmpty(req.files)) {
+  if(!isEmpty(req.file)) {
     // debe copiar el file en la ruta
-    var pathExt = path.extname(req.files.myFile.name)
-    var file = ruta + req.body.id_doc + pathExt;
-    fs.mkdir(ruta, function(err){
+    var pathExt = path.extname(req.file.originalname)
+	var nameFile = req.body.id_doc + pathExt;
+    var file = ruta + nameFile;
+	console.log(file);
+    fs.mkdir(ruta, function(err) {
       if(err){
           if(err.code === 'EEXIST'){
-            return openCopyFile(req, res, file, exits);
+            return openCopyFile(req, res, file, exits, nameFile);
           }else{
-            deleteFile(req.files.myFile.path);
+            //deleteFile(req.file.path);
             return res.status(500).send("Error creando directorio "+ruta);
           }
       }else {
-        return openCopyFile(req, res, file, exits);
+        return openCopyFile(req, res, file, exits, nameFile);
       }
     });
   }else{
@@ -56,32 +58,29 @@ function isEmpty(obj) {
     return true;
 }
 
-function openCopyFile(req, res, file, exits){
+function openCopyFile(req, res, file, exits, nameFile){
   fs.open(file, 'w', function(err, data){
     if (err) {
       return res.status(500).send('Error abriendo archivo '+file);
     }else {
-      return copyFile(req, res, file, exits);
+      return copyFile(req, res, file, exits, nameFile);
     }
   })
 }
 
-function copyFile(req, res, file, exits){
-  fs.copyFile(req.files.myFile.path,
-    file,
-    function(err) {
-      if(err) {
-        deleteFile(req.files.myFile.path);
-        return res.status(500).send(err);
-      }
-
-      if(exits){
+function copyFile(req, res, file, exits, nameFile){
+	var src = fs.createReadStream(req.file.path);
+	var dest = fs.createWriteStream(file);
+	
+	src.pipe(dest);
+	src.on('end', function() { 
+		if(exits){
           var query = { idDoc: req.body.id_doc };
           modelRutaImagen.findOneAndUpdate (query,
-            {ruta: ruta + req.files.myFile.originalFilename},
+            {ruta: ruta + nameFile},
             {new: true},
             function(err, modelRutaImagen){
-                deleteFile(req.files.myFile.path);
+                //deleteFile(req.file.path);
                 if(err){
                   return res.status(500).send(err);
                 }
@@ -92,20 +91,20 @@ function copyFile(req, res, file, exits){
         // guarda la imagen con la ruta
         var rutaImagenes = new modelRutaImagen({
           idDoc: req.body.id_doc,
-          ruta: ruta + req.files.myFile.originalFilename
+          ruta: ruta + nameFile
         });
 
         rutaImagenes.save(function(err, rutaImagenes){
-          deleteFile(req.files.myFile.path);
+          //deleteFile(req.file.path);
           if(err) {
             return res.status(500).send ("Error al realizar el cargue de la imagen");
           }
           return res.status(200).jsonp(rutaImagenes);
         });
       }
-
-
-    });
+	});
+	src.on('error', function(err) { res.render('error'); });
+	
 }
 
 function deleteFile(path){
