@@ -11,6 +11,9 @@ var particiones = new Schema({
   },
   disponible: {
     type: Boolean
+  },
+  disk_guardar: {
+    type: Boolean
   }
 });
 

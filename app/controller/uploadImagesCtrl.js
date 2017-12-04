@@ -10,8 +10,7 @@ var uploadImage = require("../model/rutaImagenes"),
   os = require('os');
 
 var modelRutaImagen = uploadImage.rutaImagenesModel;
-var ruta = os.homedir() + "/imagenes_lyra/";
-
+var ruta = "";
 
 function guardarImagen(req, res) {
   modelRutaImagen.findOne({
@@ -19,9 +18,7 @@ function guardarImagen(req, res) {
   }, function(err, dataRutaImagen) {
     if (err) return res.status(500).send(err);
     if (dataRutaImagen != null) {
-      if (!isEmpty(req.file)) {
-        return realizarProcesoCargueImagen(req, res, true);
-      }
+      return realizarProcesoCargueImagen(req, res, true);
     } else {
       return realizarProcesoCargueImagen(req, res, false);
     }
@@ -33,20 +30,9 @@ function realizarProcesoCargueImagen(req, res, exits) {
     // debe copiar el file en la ruta
     var pathExt = path.extname(req.file.originalname)
     var nameFile = req.body.id_doc + pathExt;
-    var file = ruta + nameFile;
-    console.log(file);
-    fs.mkdir(ruta, function(err) {
-      if (err) {
-        if (err.code === 'EEXIST') {
-          return openCopyFile(req, res, file, exits, nameFile);
-        } else {
-          deleteFile(req.file.path);
-          return res.status(500).send("Error creando directorio " + ruta);
-        }
-      } else {
-        return openCopyFile(req, res, file, exits, nameFile);
-      }
-    });
+    ruta = res.locals.dir_copia;
+    var file = ruta + "/" + nameFile;
+    return openCopyFile(req, res, file, exits, nameFile);
   } else {
     return res.status(500).send('Falta la imagen del documento');
   }
@@ -81,7 +67,7 @@ function copyFile(req, res, file, exits, nameFile) {
         idDoc: req.body.id_doc
       };
       modelRutaImagen.findOneAndUpdate(query, {
-          ruta: ruta + nameFile
+          ruta: ruta + "/" + nameFile
         }, {
           new: true
         },
@@ -97,7 +83,7 @@ function copyFile(req, res, file, exits, nameFile) {
       // guarda la imagen con la ruta
       var rutaImagenes = new modelRutaImagen({
         idDoc: req.body.id_doc,
-        ruta: ruta + nameFile
+        ruta: ruta + "/" + nameFile
       });
 
       rutaImagenes.save(function(err, rutaImagenes) {
@@ -110,7 +96,7 @@ function copyFile(req, res, file, exits, nameFile) {
     }
   });
   src.on('error', function(err) {
-    res.render('error');
+    return res.status(500).send(err);
   });
 
 }
