@@ -18,8 +18,12 @@ var mongoose = require("mongoose"),
 
 
 var rutaImages = new Schema({
-  idDoc: {type: String},
-  ruta: {type: String}
+  idDoc: {
+    type: String
+  },
+  ruta: {
+    type: String
+  }
 });
 
 module.exports.rutaImagenesModel = mongoose.model("ruta_imagenes", rutaImages);

@@ -5,122 +5,132 @@
 */
 
 var uploadImage = require("../model/rutaImagenes"),
-    fs = require('fs'),
-    path = require('path'), 
-	os = require('os');
+  fs = require('fs'),
+  path = require('path'),
+  os = require('os');
 
 var modelRutaImagen = uploadImage.rutaImagenesModel;
-var ruta = os.homedir() + "\\imagenes_lyra\\";
+var ruta = os.homedir() + "/imagenes_lyra/";
 
 
 function guardarImagen(req, res) {
-  modelRutaImagen.findOne({idDoc:req.body.id_doc}, function(err, dataRutaImagen){
-    if(err) return res.status(500).send(err);
-    if(dataRutaImagen != null) {
-      if(!isEmpty(req.file)) {
+  modelRutaImagen.findOne({
+    idDoc: req.body.id_doc
+  }, function(err, dataRutaImagen) {
+    if (err) return res.status(500).send(err);
+    if (dataRutaImagen != null) {
+      if (!isEmpty(req.file)) {
         return realizarProcesoCargueImagen(req, res, true);
       }
-    }else{
+    } else {
       return realizarProcesoCargueImagen(req, res, false);
     }
   })
 }
 
 function realizarProcesoCargueImagen(req, res, exits) {
-  if(!isEmpty(req.file)) {
+  if (!isEmpty(req.file)) {
     // debe copiar el file en la ruta
     var pathExt = path.extname(req.file.originalname)
-	var nameFile = req.body.id_doc + pathExt;
+    var nameFile = req.body.id_doc + pathExt;
     var file = ruta + nameFile;
-	console.log(file);
+    console.log(file);
     fs.mkdir(ruta, function(err) {
-      if(err){
-          if(err.code === 'EEXIST'){
-            return openCopyFile(req, res, file, exits, nameFile);
-          }else{
-            //deleteFile(req.file.path);
-            return res.status(500).send("Error creando directorio "+ruta);
-          }
-      }else {
+      if (err) {
+        if (err.code === 'EEXIST') {
+          return openCopyFile(req, res, file, exits, nameFile);
+        } else {
+          deleteFile(req.file.path);
+          return res.status(500).send("Error creando directorio " + ruta);
+        }
+      } else {
         return openCopyFile(req, res, file, exits, nameFile);
       }
     });
-  }else{
+  } else {
     return res.status(500).send('Falta la imagen del documento');
   }
 }
 
 function isEmpty(obj) {
-    for(var key in obj) {
-        if(obj.hasOwnProperty(key))
-            return false;
-    }
-    return true;
+  for (var key in obj) {
+    if (obj.hasOwnProperty(key))
+      return false;
+  }
+  return true;
 }
 
-function openCopyFile(req, res, file, exits, nameFile){
-  fs.open(file, 'w', function(err, data){
+function openCopyFile(req, res, file, exits, nameFile) {
+  fs.open(file, 'w', function(err, data) {
     if (err) {
-      return res.status(500).send('Error abriendo archivo '+file);
-    }else {
+      return res.status(500).send('Error abriendo archivo ' + file);
+    } else {
       return copyFile(req, res, file, exits, nameFile);
     }
   })
 }
 
-function copyFile(req, res, file, exits, nameFile){
-	var src = fs.createReadStream(req.file.path);
-	var dest = fs.createWriteStream(file);
-	
-	src.pipe(dest);
-	src.on('end', function() { 
-		if(exits){
-          var query = { idDoc: req.body.id_doc };
-          modelRutaImagen.findOneAndUpdate (query,
-            {ruta: ruta + nameFile},
-            {new: true},
-            function(err, modelRutaImagen){
-                //deleteFile(req.file.path);
-                if(err){
-                  return res.status(500).send(err);
-                }
-                return res.status(200).jsonp(modelRutaImagen);
+function copyFile(req, res, file, exits, nameFile) {
+  var src = fs.createReadStream(req.file.path);
+  var dest = fs.createWriteStream(file);
 
-          })
-      }else{
-        // guarda la imagen con la ruta
-        var rutaImagenes = new modelRutaImagen({
-          idDoc: req.body.id_doc,
+  src.pipe(dest);
+  src.on('end', function() {
+    if (exits) {
+      var query = {
+        idDoc: req.body.id_doc
+      };
+      modelRutaImagen.findOneAndUpdate(query, {
           ruta: ruta + nameFile
-        });
-
-        rutaImagenes.save(function(err, rutaImagenes){
-          //deleteFile(req.file.path);
-          if(err) {
-            return res.status(500).send ("Error al realizar el cargue de la imagen");
+        }, {
+          new: true
+        },
+        function(err, modelRutaImagen) {
+          deleteFile(req.file.path);
+          if (err) {
+            return res.status(500).send(err);
           }
-          return res.status(200).jsonp(rutaImagenes);
-        });
-      }
-	});
-	src.on('error', function(err) { res.render('error'); });
-	
+          return res.status(200).jsonp(modelRutaImagen);
+
+        })
+    } else {
+      // guarda la imagen con la ruta
+      var rutaImagenes = new modelRutaImagen({
+        idDoc: req.body.id_doc,
+        ruta: ruta + nameFile
+      });
+
+      rutaImagenes.save(function(err, rutaImagenes) {
+        deleteFile(req.file.path);
+        if (err) {
+          return res.status(500).send("Error al realizar el cargue de la imagen");
+        }
+        return res.status(200).jsonp(rutaImagenes);
+      });
+    }
+  });
+  src.on('error', function(err) {
+    res.render('error');
+  });
+
 }
 
-function deleteFile(path){
+function deleteFile(path) {
   fs.unlinkSync(path);
 }
 
-function consutarImagenIdDoc(req, res){
-  modelRutaImagen.find({idDoc: req.params.id_doc}, function(err, modelRutaImagen){
-    if(err) return res.status(500).send("Error con busqueda de registros para el idDoc "+req.params.id_doc);
+function consutarImagenIdDoc(req, res) {
+  modelRutaImagen.find({
+    idDoc: req.params.id_doc
+  }, function(err, modelRutaImagen) {
+    if (err) return res.status(500).send("Error con busqueda de registros para el idDoc " + req.params.id_doc);
     return res.status(200).jsonp(modelRutaImagen);
   })
 }
 
-function consutarImagenes(req, res){
-  modelRutaImagen.find(function(err, data){
-    if(err) return res.status(500).send("Error con busqueda de registros");
+function consutarImagenes(req, res) {
+  modelRutaImagen.find(function(err, data) {
+    if (err) return res.status(500).send("Error con busqueda de registros");
     return res.status(200).jsonp(data);
   })
 }
