@@ -1,12 +1,14 @@
-var express  = require("express"),
-    app      = express(),
-    bodyParser  = require("body-parser"),
-    mongoose = require('mongoose'),
-    routingLyra = require('./routing/uploadImageRouting'), 
-	cors = require('cors');
+var express = require("express"),
+  app = express(),
+  bodyParser = require("body-parser"),
+  mongoose = require('mongoose'),
+  routingLyra = require('./routing/uploadImageRouting'),
+  cors = require('cors');
 
 
-app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.urlencoded({
+  extended: false
+}));
 app.use(bodyParser.json());
 app.use(cors())
 
@@ -23,13 +25,15 @@ app.use('/api', routingLyra);
 
 mongoose.Promise = global.Promise;
 // Connection to DB
-mongoose.connect('mongodb://localhost/imagenes_lyra',{useMongoClient: true},
- function(err, res) {
-  if(err) throw err;
+mongoose.connect('mongodb://localhost/imagenes_lyra', {
+    useMongoClient: true
+  },
+  function(err, res) {
+    if (err) throw err;
     console.log('Connected to Database');
-});
+  });
 
 // Start server
-app.listen(3000, function(err){
-	console.log("Conected port http://localhot:3000")
+const server = app.listen(3000, function(err) {
+  console.log("Conected port http://localhot:3000")
 });

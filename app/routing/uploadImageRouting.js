@@ -2,10 +2,17 @@ var express = require("express"),
   uploadCtrl = require('../controller/uploadImagesCtrl'),
   particionMiddleware = require('../middlewares/particion_disponible'),
   multer = require('multer'),
-  os = require('os'),
-  upload = multer({
-    dest: os.homedir() + "/temp"
-  });
+  os = require('os');
+
+
+//upload = multer({
+//dest: os.homedir() + "/temp"
+//});
+
+var storage = multer.memoryStorage()
+var upload = multer({
+  storage: storage
+})
 
 var multipart = require('connect-multiparty');
 var multipartMiddleware = multipart();

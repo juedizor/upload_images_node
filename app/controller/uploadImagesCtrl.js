@@ -5,34 +5,30 @@
 */
 
 var uploadImage = require("../model/rutaImagenes"),
+  particiones = require('../model/particiones'),
   fs = require('fs'),
   path = require('path'),
-  os = require('os');
+  os = require('os'),
+  diskspace = require('diskspace');
 
 var modelRutaImagen = uploadImage.rutaImagenesModel;
-var ruta = "";
+var particionModel = particiones.particionesModel;
+var KB = 1024;
+var porcentajeDisponibilidad = 10;
+var cant = 1;
 
 function guardarImagen(req, res) {
-  modelRutaImagen.findOne({
-    idDoc: req.body.id_doc
-  }, function(err, dataRutaImagen) {
-    if (err) return res.status(500).send(err);
-    if (dataRutaImagen != null) {
-      return realizarProcesoCargueImagen(req, res, true);
-    } else {
-      return realizarProcesoCargueImagen(req, res, false);
-    }
-  })
+  return realizarProcesoCargueImagen(req, res);
 }
 
-function realizarProcesoCargueImagen(req, res, exits) {
+function realizarProcesoCargueImagen(req, res) {
   if (!isEmpty(req.file)) {
     // debe copiar el file en la ruta
     var pathExt = path.extname(req.file.originalname)
     var nameFile = req.body.id_doc + pathExt;
-    ruta = res.locals.dir_copia;
+    var ruta = res.locals.dir_copia;
     var file = ruta + "/" + nameFile;
-    return openCopyFile(req, res, file, exits, nameFile);
+    return openCopyFile(req, res, file, nameFile, ruta);
   } else {
     return res.status(500).send('Falta la imagen del documento');
   }
@@ -46,60 +42,95 @@ function isEmpty(obj) {
   return true;
 }
 
-function openCopyFile(req, res, file, exits, nameFile) {
+function openCopyFile(req, res, file, nameFile, ruta) {
   fs.open(file, 'w', function(err, data) {
     if (err) {
       return res.status(500).send('Error abriendo archivo ' + file);
     } else {
-      return copyFile(req, res, file, exits, nameFile);
+      fs.writeFile(file, req.file.buffer, function(err, success) {
+        if (err) {
+          return res.status(500).send("Error escribiendo imagen " + file);
+        }
+        var dataImgResult = {
+          id_doc: req.body.id_doc,
+          ruta_img: file
+        }
+
+        // aqui se almaceno la imagen fisicamente en disco,
+        // ahora pasa a verificar disponibilidad del disco en porcentaje
+        diskspace.check(ruta, function(err, result) {
+          if (err) {
+            console.log(err)
+            deleteFile(file); // elimina el archivo por haber ocurrido un error y notifica el error al cliente
+            return res.status(500).send(err);
+          }
+
+          /*
+           *  captura los totales en megas
+           */
+          var total = result.total / KB;
+          var used = result.used / KB;
+          var free = result.free / KB;
+          //console.log("total (MB): " + total + "\n" + "used (MB): " + used + "\n" + "free (MB): " + free)
+
+          var porcDispo = (free * 100) / total; // calcula el porcentaje disponible del disco
+          porcDispo = Math.round(porcDispo); // redondea el porcentaje
+          var disk = res.locals.disk; // captura los datos del disco que se esta manipulando
+
+          // se verifica que el porcentaje disponible no supere el parametrizado
+          if (porcDispo >= porcentajeDisponibilidad) {
+            // supero el porcentaje parametrizado, procede a realizar el proceso de desactivar el disco
+            console.log("exitoso " + file);
+            return res.status(200).jsonp(dataImgResult);
+          } else {
+            return activarDiscos(req, res, false, file, dataImgResult);
+          }
+
+        });
+      });
     }
   })
 }
 
-function copyFile(req, res, file, exits, nameFile) {
-  var src = fs.createReadStream(req.file.path);
-  var dest = fs.createWriteStream(file);
 
-  src.pipe(dest);
-  src.on('end', function() {
-    if (exits) {
-      var query = {
-        idDoc: req.body.id_doc
-      };
-      modelRutaImagen.findOneAndUpdate(query, {
-          ruta: ruta + "/" + nameFile
-        }, {
-          new: true
-        },
-        function(err, modelRutaImagen) {
-          deleteFile(req.file.path);
-          if (err) {
-            return res.status(500).send(err);
-          }
-          return res.status(200).jsonp(modelRutaImagen);
+function activarDiscos(req, res, noDisponible, file, dataImgResult) {
+  var disk = res.locals.disk; // disco que se esta manipulando
+  var idParticionManipulada = disk.id_particion; // particion que se esta manipulando
+  var query = {
+    id_particion: idParticionManipulada
+  };
 
-        })
-    } else {
-      // guarda la imagen con la ruta
-      var rutaImagenes = new modelRutaImagen({
-        idDoc: req.body.id_doc,
-        ruta: ruta + "/" + nameFile
-      });
+  // busqueda de la particion que se esta manipulando para desactivarla
+  particionModel.findOneAndUpdate(query, {
+      disponible: noDisponible
+    }, {
+      new: true
+    },
+    function(err, data) {
+      if (err) {
+        /*
+         *  Ocurrio un error en desactivar el disco que se esta manipulando
+            elimina el archivo copiado y notifica al cliente el error
+         */
+        console.log(err)
+        deleteFile(file);
+        return res.status(500).send(err);
+      } else {
+        /**
+         *  en este punto se desactivo el disco que se esta manipulando,
+            y el proceso debio finalizar exitosamente, notificando al cliente
+            el resultado
+         */
 
-      rutaImagenes.save(function(err, rutaImagenes) {
-        deleteFile(req.file.path);
-        if (err) {
-          return res.status(500).send("Error al realizar el cargue de la imagen");
-        }
-        return res.status(200).jsonp(rutaImagenes);
-      });
-    }
-  });
-  src.on('error', function(err) {
-    return res.status(500).send(err);
-  });
+        console.log("exitoso " + file);
+        return res.status(200).jsonp(dataImgResult);
 
+
+      }
+    });
 }
+
+
 
 function deleteFile(path) {
   fs.unlinkSync(path);
