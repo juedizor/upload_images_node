@@ -3,37 +3,33 @@ var express = require("express"),
   bodyParser = require("body-parser"),
   mongoose = require('mongoose'),
   routingLyra = require('./routing/uploadImageRouting'),
-  cors = require('cors');
+  cors = require('cors'),
+  compression = require('compression'),
+  logger = require('./log/logger').logger,
+  config = require('./config/configuration').get(process.env.NODE_ENV);
 
 
 app.use(bodyParser.urlencoded({
   extended: false
 }));
 app.use(bodyParser.json());
-app.use(cors())
-
-/**
-app.post('/upload', multipartMiddleware, function(req, res) {
-  console.log(req.files)
-  console.log(req.body)
-  // don't forget to delete all req.files when done
-});
-*/
-
+app.use(cors());
+app.use(compression());
 app.use('/api', routingLyra);
 
 
 mongoose.Promise = global.Promise;
 // Connection to DB
-mongoose.connect('mongodb://localhost/imagenes_lyra', {
+mongoose.connect(config.bd.host + config.bd.nameBD, {
     useMongoClient: true
   },
   function(err, res) {
     if (err) throw err;
-    console.log('Connected to Database');
+    logger.info('Conexión exitosa BD');
   });
 
 // Start server
-const server = app.listen(3000, function(err) {
-  console.log("Conected port http://localhot:3000")
+const server = app.listen(config.port, function(err, success) {
+  if (err) throw err;
+  logger.info('Arranque de server exitoso puerto: ' + config.port);
 });

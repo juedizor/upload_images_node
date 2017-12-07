@@ -2,20 +2,17 @@ var express = require("express"),
   uploadCtrl = require('../controller/uploadImagesCtrl'),
   particionMiddleware = require('../middlewares/particion_disponible'),
   multer = require('multer'),
-  os = require('os');
-
-
-//upload = multer({
-//dest: os.homedir() + "/temp"
-//});
-
-var storage = multer.memoryStorage()
+  os = require('os'),
+  config = require('../config/configuration').get(process.env.NODE_ENV);
+//,
 var upload = multer({
-  storage: storage
-})
+  dest: config.upload_file_dest
+});
 
-var multipart = require('connect-multiparty');
-var multipartMiddleware = multipart();
+//var storage = multer.memoryStorage()
+//var upload = multer({
+//storage: storage
+//})
 
 var lyraImage = express.Router();
 

@@ -1,13 +1,14 @@
 var particiones = require('../model/particiones'),
   fs = require('fs'),
-  dir = require('path-reader')
-moment = require('moment');
+  dir = require('path-reader'),
+  moment = require('moment'),
+  logger = require('../log/logger').logger,
+  config = require('../config/configuration').get(process.env.NODE_ENV),
+  HttpStatus = require('http-status-codes');
 
 var particionesModel = particiones.particionesModel;
-var KB = 1024;
-var cantMaxDir = 5
-var idParticion = 1;
-var cant = 1;
+var cantMaxDir = config.params_cargue_images.cantMaxDir;
+var idParticion = config.params_cargue_images.idParticion;
 
 function getDiscoDisponible(req, res, next) {
   particionesModel.findOne({
@@ -15,7 +16,8 @@ function getDiscoDisponible(req, res, next) {
     disponible: true
   }, function(err, dataParticion) {
     if (err) {
-      return res.status(500).send("No hay disco disponible " + err)
+      logger.error(err);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send("No hay disco disponible " + err)
     };
 
     if (dataParticion == null) {
@@ -30,11 +32,13 @@ function getDiscoDisponible(req, res, next) {
         disponible: true
       }, function(err, particionesModel) {
         if (err) {
-          return res.status(500).send(err);
+          logger.error(err);
+          return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send(err);
         }
 
         if (particionesModel == null) {
-          return res.status(500).send("No hay disco disponible");
+          logger.error("No hay disco disponible");
+          return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send("No hay disco disponible");
         }
 
         return seleccionarParticion(req, res, particionesModel, next);
@@ -65,8 +69,10 @@ function seleccionarParticion(req, res, dataParticion, next) {
 
       fs.mkdir(directorio, function(err) {
         if (err) {
+          logger.error(err);
           if (err.code !== 'EEXIST') {
-            return res.status(500).send("Error creando directorio " + ruta);
+            logger.error("Error creando directorio " + ruta);
+            return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send("Error creando directorio " + ruta);
           }
         } else {
           // en este punto no existe, creado inicialmente
@@ -119,8 +125,10 @@ function seleccionarParticion(req, res, dataParticion, next) {
 
         fs.mkdir(directorio, function(err) {
           if (err) {
+            logger.error(err);
             if (err.code !== 'EEXIST') {
-              return res.status(500).send("Error creando directorio " + ruta);
+              logger.error("Error creando directorio " + ruta);
+              return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send("Error creando directorio " + ruta);
             } else {
               res.locals.dir_copia = directorio;
               res.locals.disk = data;
